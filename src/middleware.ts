@@ -1,21 +1,26 @@
-import { auth } from "@/auth";
-import { NextResponse } from "next/server";
+import { auth, authConfig } from '@/auth';
+import { Auth, skipCSRFCheck } from '@auth/core';
 
 export default auth((req) => {
-  const { pathname, search } = req.nextUrl;
   const session = req.auth;
-  const redirectUrl = encodeURIComponent(`${pathname}${search}`);
 
-  console.log("middleware session:", session);
+  if (!session) {
+    const headers = new Headers(req.headers);
+    headers.set('Content-Type', 'application/x-www-form-urlencoded');
 
-  if (!session && !pathname.includes("/guest")) {
-    return NextResponse.redirect(
-      new URL(`/guest?redirect=${redirectUrl}`, req.nextUrl)
-    );
+    const url = `${req.nextUrl.origin}/api/auth/callback/guest`;
+
+    const body = new URLSearchParams({ callbackUrl: '/' });
+    const authRequest = new Request(url, { method: 'POST', headers, body });
+
+    return Auth(authRequest, {
+      ...authConfig,
+      skipCSRFCheck,
+    });
   }
 });
 
 // Optionally, don't invoke Middleware on some paths
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico).*)'],
 };
